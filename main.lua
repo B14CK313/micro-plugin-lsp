@@ -27,9 +27,9 @@ local json = {}
 
 function toBytes(str)
 	local result = {}
-	for i=1,#str do 
+	for i=1,#str do
 		local b = str:byte(i)
-		if b < 32 then 
+		if b < 32 then
 			table.insert(result, b)
 		end
 	end
@@ -108,14 +108,14 @@ end
 
 function init()
 	config.RegisterCommonOption("lsp", "server", "python=pylsp,go=gopls,typescript=deno lsp,javascript=deno lsp,markdown=deno lsp,json=deno lsp,jsonc=deno lsp,rust=rls,lua=lua-lsp,c++=clangd")
-	config.RegisterCommonOption("lsp", "formatOnSave", true)
+	config.RegisterCommonOption("lsp", "formatOnSave", "python,go,typescript,javascript,markdown,json,jsonc,rust,lua,c++")
 	config.RegisterCommonOption("lsp", "autocompleteDetails", false)
 	config.RegisterCommonOption("lsp", "ignoreMessages", "")
 	config.RegisterCommonOption("lsp", "tabcompletion", true)
 	config.RegisterCommonOption("lsp", "ignoreTriggerCharacters", "completion")
 	-- example to ignore all LSP server message starting with these strings:
 	-- "lsp.ignoreMessages": "Skipping analyzing |See https://"
-	
+
 	config.MakeCommand("hover", hoverAction, config.NoComplete)
 	config.MakeCommand("definition", definitionAction, config.NoComplete)
 	config.MakeCommand("lspcompletion", completionAction, config.NoComplete)
@@ -129,16 +129,16 @@ function init()
 	config.TryBindKey("CtrlSpace", "command:lspcompletion", false)
 
 	config.AddRuntimeFile("lsp", config.RTHelp, "help/lsp.md")
-		
+
 	-- @TODO register additional actions here
 end
 
 function withSend(filetype)
-	return function (method, params, isNotification) 
+	return function (method, params, isNotification)
 	    if cmd[filetype] == nil then
 	    	return
 	    end
-	    
+
 		local msg = fmt.Sprintf('{"jsonrpc": "2.0", %s"method": "%s", "params": %s}', not isNotification and fmt.Sprintf('"id": %.0f, ', id[filetype]) or "", method, params)
 		id[filetype] = id[filetype] + 1
 		msg = fmt.Sprintf("Content-Length: %.0f\r\n\r\n%s", #msg, msg)
@@ -203,7 +203,7 @@ function onIndentSelection(bp) onRune(bp); end
 function onPaste(bp) onRune(bp); end
 function onSave(bp) onRune(bp); end
 
-function onEscape(bp) 
+function onEscape(bp)
 	if splitBP ~= nil then
 		pcall(function () splitBP:Unsplit(); end)
 		splitBP = nil
@@ -227,11 +227,14 @@ function preInsertNewline(bp)
 end
 
 function preSave(bp)
-	if config.GetGlobalOption("lsp.formatOnSave") then
-		onRune(bp)
-		formatAction(bp, function ()
-			bp:Save()
-		end)
+	local filetype = bp.Buf:FileType()
+	for ft in string.gmatch(config.GetGlobalOption("lsp.formatOnSave"), '([^,]+)') do
+		if filetype == ft then
+			onRune(bp)
+			formatAction(bp, function ()
+				bp:Save()
+			end)
+		end
 	end
 end
 
@@ -322,12 +325,12 @@ function onStdout(filetype)
 		end
 		if not text:ends("}") then
 			return
-		end	
+		end
 		local data = message:parse()
 		if data == false then
 			return
 		end
-		
+
 		if data.method == "workspace/configuration" then
 		    -- actually needs to respond with the same ID as the received JSON
 			local message = fmt.Sprintf('{"jsonrpc": "2.0", "id": %.0f, "result": [{"enable": true}]}', data.id)
@@ -348,7 +351,7 @@ function onStdout(filetype)
 					end
 					local mstart = buffer.Loc(diagnostic.range.start.character, diagnostic.range.start.line)
 		            local mend = buffer.Loc(diagnostic.range["end"].character, diagnostic.range["end"].line)
-	
+
 					if not isIgnoredMessage(diagnostic.message) then
 						msg = buffer.NewMessage("lsp", diagnostic.message, mstart, mend, type)
 						bp:AddMessage(msg)
@@ -393,7 +396,7 @@ function onExit(filetype)
 end
 
 -- the actual hover action request and response
--- the hoverActionResponse is hooked up in 
+-- the hoverActionResponse is hooked up in
 function hoverAction(bp)
 	local filetype = bp.Buf:FileType()
 	if cmd[filetype] ~= nil then
@@ -418,9 +421,9 @@ end
 
 -- the definition action request and response
 function definitionAction(bp)
-	local filetype = bp.Buf:FileType()	
+	local filetype = bp.Buf:FileType()
 	if cmd[filetype] == nil then return; end
-	
+
 	local send = withSend(filetype)
 	local file = bp.Buf.AbsPath
 	local line = bp.Buf:GetActiveCursor().Y
@@ -459,7 +462,7 @@ function completionAction(bp)
 	local line = bp.Buf:GetActiveCursor().Y
 	local char = bp.Buf:GetActiveCursor().X
 
-	if lastCompletion[1] == file and lastCompletion[2] == line and lastCompletion[3] == char then 
+	if lastCompletion[1] == file and lastCompletion[2] == line and lastCompletion[3] == char then
 		completionCursor = completionCursor + 1
 	else
 		completionCursor = 0
@@ -534,13 +537,13 @@ end
 
 function completionActionResponse(bp, data)
 	local results = data.result
-	if results == nil then 
+	if results == nil then
 		return
 	end
 	if results.items then
 		results = results.items
 	end
-	
+
 	local xy = buffer.Loc(bp.Cursor.X, bp.Cursor.Y)
 	local start = xy
 	if bp.Cursor:HasSelection() then
@@ -589,10 +592,10 @@ function completionActionResponse(bp, data)
 	table.sort(results, function (left, right)
 		return (left.sortText or left.label) < (right.sortText or right.label)
 	end)
-	
+
 	entry = results[(completionCursor % #results) + 1]
 	-- if no matching results are found
-	if entry == nil then 
+	if entry == nil then
 	    -- reposition cursor and stop
 		bp.Cursor:GotoLoc(xy)
 		return
@@ -634,7 +637,7 @@ function completionActionResponse(bp, data)
 	end
 	local inserting = "" .. toInsert:gsub(prefix, "")
 	bp.Buf:Insert(start, inserting)
-	
+
 	if #results > 1 then
 		if entry.textEdit then
 			bp.Cursor:GotoLoc(start)
@@ -649,9 +652,9 @@ function completionActionResponse(bp, data)
 	else
 		bp.Cursor:GotoLoc(buffer.Loc(start.X + #inserting, start.Y))
 	end
-	
+
 	local startLoc = buffer.Loc(0, 0)
-	local endLoc = buffer.Loc(0, 0)	
+	local endLoc = buffer.Loc(0, 0)
 	local msg = ''
 	local insertion = ''
 	if entry.detail or entry.documentation then
@@ -677,7 +680,7 @@ function completionActionResponse(bp, data)
 				local len = #result.label + 4
 				if #lastLine + len >= bp:GetView().Width then
 					msg = msg .. "\n  "
-				else 
+				else
 					msg = msg .. '  '
 				end
 			else
@@ -741,7 +744,7 @@ function formatActionResponse(callback)
 		-- this allows for changes to not need position updates
 		table.sort(edits, function (left, right)
 			-- go by lines first
-			return left.range['end'].line > right.range['end'].line or 
+			return left.range['end'].line > right.range['end'].line or
 				-- if lines match, go by end character
 				left.range['end'].line == right.range['end'].line and left.range['end'].character > right.range['end'].character or
 				-- if they match too, go by start character
@@ -759,7 +762,7 @@ function formatActionResponse(callback)
 			bp.Cursor:SetSelectionEnd(rangeEnd)
 			bp.Cursor:DeleteSelection()
 			bp.Cursor:ResetSelection()
-			
+
 			if edit.newText ~= "" then
 				bp.Buf:insert(rangeStart, edit.newText)
 			end
@@ -780,9 +783,9 @@ end
 
 -- the references action request and response
 function referencesAction(bp)
-	local filetype = bp.Buf:FileType()	
+	local filetype = bp.Buf:FileType()
 	if cmd[filetype] == nil then return; end
-	
+
 	local send = withSend(filetype)
 	local file = bp.Buf.AbsPath
 	local line = bp.Buf:GetActiveCursor().Y
@@ -797,7 +800,7 @@ function referencesActionResponse(bp, data)
 	if results == nil or #results <= 0 then return; end
 
 	local file = bp.Buf.AbsPath
-	
+
 	local msg = ''
 	for _idx, ref in ipairs(results) do
 		if msg ~= '' then msg = msg .. '\n'; end

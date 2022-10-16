@@ -40,7 +40,7 @@ Example:
 ```
 {
 	"lsp.server": "python=pyls,go=gopls,typescript=deno lsp,rust=rls",
-	"lsp.formatOnSave": true,
+	"lsp.formatOnSave": "python,go,typescript,rust",
 	"lsp.ignoreMessages": "LS message1 to ignore|LS message 2 to ignore|...",
 	"lsp.tabcompletion": true,
 	"lsp.ignoreTriggerCharacters", "completion,signature",

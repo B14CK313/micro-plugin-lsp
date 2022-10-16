@@ -43,13 +43,13 @@ Add lines
 ```json
 {
   "lsp.server": "python=pylsp,go=gopls,typescript=deno lsp={\"importMap\": \"./import_map.json\"}",
-  "lsp.formatOnSave": true
+  "lsp.formatOnSave": "python,go,typescript"
 }
 ```
 
 Remember to add comma to previous line. Depending on the language server,
 automatic code formating can be quite opinionated. In that case, you can simply
-set lsp.formatOnSave to false.
+remove the filetype from lsp.formatOnSave.
 
 For Python language server, the currently maintained fork is 'pylsp'. If you
 wish to use the Palantir version (last updated in 2020) instead, set
@@ -63,6 +63,12 @@ The lsp.server default settings (if no others are defined) are:
 
 ```
 python=pylsp,go=gopls,typescript=deno lsp,javascript=deno lsp,markdown=deno lsp,json=deno lsp,jsonc=deno lsp,rust=rls,lua=lua-lsp,c++=clangd
+```
+
+The lsp.formatOnSave default settings (if no others are defined) are:
+
+```
+python,go,typescript,javascript,markdown,json,jsonc,rust,lua,c++
 ```
 
 ## Install Language Server
